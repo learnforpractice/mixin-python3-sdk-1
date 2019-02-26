@@ -114,7 +114,28 @@ class MIXIN_API:
 
         tsstring = tszero + tsone + tstwo + tsthree + '\0\0\0\0'
         if iterString is None:
-            toEncryptContent = self.pay_pin + tsstring + tsstring
+            ts = int(time.time() * 100000)
+            tszero = ts %   0x100
+            tsone = (ts %   0x10000) >> 8
+            tstwo = (ts %   0x1000000) >> 16
+            tsthree = (ts % 0x100000000) >> 24
+            tsfour= (ts %    0x10000000000) >> 32
+            tsfive= (ts %   0x10000000000) >> 40
+            tssix = (ts %   0x1000000000000) >> 48
+            tsseven= (ts %  0x1000000000000) >> 56
+
+
+            tszero = chr(tszero).encode('latin1').decode('latin1')
+            tsone = chr(tsone)
+            tstwo = chr(tstwo)
+            tsthree = chr(tsthree)
+            tsfour = chr(tsfour)
+            tsfive= chr(tsfive)
+            tssix = chr(tssix)
+            tsseven = chr(tsseven)
+            iterStringByTS = tszero + tsone + tstwo + tsthree + tsfour + tsfive + tssix + tsseven
+
+            toEncryptContent = self.pay_pin + tsstring + iterStringByTS
         else:
             toEncryptContent = self.pay_pin + tsstring + iterString
 
@@ -345,26 +366,35 @@ class MIXIN_API:
     if auth_token is empty, it create robot' pin.
     if auth_token is set, it create messenger user pin.
     """
-    def updatePin(self, new_pin, old_pin="", auth_token=""):
-        enPin = self.genEncrypedPin(new_pin)
-        print(enPin.decode())
-        body = {
-            "old_pin": old_pin,
-            "pin": enPin.decode()
-        }
+    def updatePin(self, new_pin, old_pin, auth_token=""):
+        old_inside_pay_pin = self.pay_pin
+        self.pay_pin = new_pin
+        newEncrypedPin = self.genEncrypedPin()
+        if old_pin == "":
+            body = {
+                "old_pin": "",
+                "pin": newEncrypedPin.decode()
+            }
+        else:
 
+            self.pay_pin = old_pin
+            oldEncryptedPin = self.genEncrypedPin()
+            body = {
+                "old_pin": oldEncryptedPin.decode(),
+                "pin": newEncrypedPin.decode()
+            }
+        self.pay_pin = old_inside_pay_pin
         return self.__genNetworkPostRequest('/pin/update', body, auth_token)
-
 
     """
     Verify PIN if is valid or not. For example, you can verify PIN before updating it.
     if auth_token is empty, it verify robot' pin.
     if auth_token is set, it verify messenger user pin.
     """
-    def verifyPin(self, pin, auth_token=""):
-
+    def verifyPin(self, auth_token=""):
+        enPin = self.genEncrypedPin()
         body = {
-            "pin": pin
+            "pin": enPin.decode()
         }
 
         return self.__genNetworkPostRequest('/pin/verify', body, auth_token)
@@ -401,19 +431,17 @@ class MIXIN_API:
     """
     Create an address for withdrawal, you can only withdraw through an existent address.
     """
-    def createAddress(self, asset_id, public_key="", label="", account_name="", account_tag=""):
+    def createAddress(self, asset_id, public_key = "", label = "", account_name = "", account_tag = ""):
 
-        encrypted_pin = self.genEncrypedPin()
         body = {
             "asset_id": asset_id,
-            "pin": encrypted_pin,
+            "pin": self.genEncrypedPin().decode(),
             "public_key": public_key,
             "label": label,
             "account_name": account_name,
-            "account_tag": account_tag
+            "account_tag": account_tag,
         }
-
-        return self.__genNetworkPostRequest('/addresses/', body)
+        return self.__genNetworkPostRequest('/addresses', body)
 
 
     """
@@ -421,7 +449,7 @@ class MIXIN_API:
     """
     def delAddress(self, address_id):
 
-        encrypted_pin = self.genEncrypedPin()
+        encrypted_pin = self.genEncrypedPin().decode()
 
         body = {"pin": encrypted_pin}
 
@@ -432,7 +460,7 @@ class MIXIN_API:
     Read an address by ID.
     """
     def getAddress(self, address_id):
-        return self.__genNetworkGetRequest('/addresses' + address_id)
+        return self.__genNetworkGetRequest('/addresses/' + address_id)
 
     """
     Transfer of assets between Mixin Network users.
