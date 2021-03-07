@@ -100,56 +100,23 @@ class MIXIN_API:
 
             self.keyForAES = decrypted_msg
 
-        ts = int(time.time())
-        tszero = ts % 0x100
-        tsone = (ts % 0x10000) >> 8
-        tstwo = (ts % 0x1000000) >> 16
-        tsthree = (ts % 0x100000000) >> 24
+        tsstring = int(time.time()) # unix time
+        tsstring = int.to_bytes(tsstring, 8, 'little')
 
-
-        tszero = chr(tszero).encode('latin1').decode('latin1')
-        tsone = chr(tsone)
-        tstwo = chr(tstwo)
-        tsthree = chr(tsthree)
-
-        tsstring = tszero + tsone + tstwo + tsthree + '\0\0\0\0'
         if iterString is None:
-            ts = int(time.time() * 1000000)
-            tszero = ts % 0x100
-            tsone = (ts % 0x10000) >> 8
-            tstwo = (ts % 0x1000000) >> 16
-            tsthree = (ts % 0x100000000) >> 24
-            tsfour = (ts % 0x10000000000) >> 32
-            tsfive = (ts % 0x1000000000000) >> 40
-            tssix = (ts % 0x100000000000000) >> 48
-            tsseven = (ts % 0x10000000000000000) >> 56
-
-            tszero = chr(tszero).encode('latin1').decode('latin1')
-            tsone = chr(tsone)
-            tstwo = chr(tstwo)
-            tsthree = chr(tsthree)
-            tsfour = chr(tsfour)
-            tsfive= chr(tsfive)
-            tssix = chr(tssix)
-            tsseven = chr(tsseven)
-            iterStringByTS = tszero + tsone + tstwo + tsthree + tsfour + tsfive + tssix + tsseven
-
-            toEncryptContent = self.pay_pin + tsstring + iterStringByTS
+            iterator = int(time.time() * 1e9) # unix nano
+            iterator = int.to_bytes(iterator, 8, 'little')
+            toEncryptContent = self.pay_pin.encode('utf8') + tsstring + iterator
         else:
-            toEncryptContent = self.pay_pin + tsstring + iterString
+            toEncryptContent = self.pay_pin.encode('utf8') + tsstring + iterString
 
-        lenOfToEncryptContent = len(toEncryptContent)
-        toPadCount = 16 - lenOfToEncryptContent % 16
-        if toPadCount > 0:
-            paddedContent = toEncryptContent + chr(toPadCount) * toPadCount
-        else:
-            paddedContent = toEncryptContent
+        toPadCount = AES.block_size - len(toEncryptContent) % AES.block_size
+        toEncryptContent = toEncryptContent + int.to_bytes(toPadCount, 1, 'little') * toPadCount
 
         iv = Random.new().read(AES.block_size)
 
-
         cipher = AES.new(self.keyForAES, AES.MODE_CBC,iv)
-        encrypted_result = cipher.encrypt(paddedContent.encode('latin1'))
+        encrypted_result = cipher.encrypt(toEncryptContent)
 
         msg = iv + encrypted_result
         encrypted_pin = base64.b64encode(msg)

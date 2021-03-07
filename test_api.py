@@ -10,8 +10,7 @@ import mixin_config
 import time
 
 mixin_api = MIXIN_API(mixin_config)
-
-
+mixin_api.verifyPin()
 
 
 transfer2user_id = 'd33f7efd-4b0b-41ff-baa3-b22ea40eb44f'  # my user id
