@@ -11,6 +11,8 @@ import time
 
 mixin_api = MIXIN_API(mixin_config)
 
+mixin_api.verifyPin()
+
 
 
 
